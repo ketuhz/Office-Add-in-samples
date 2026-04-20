@@ -1,0 +1,133 @@
+@* Copyright (c) Maarten van Stam. All rights reserved. Licensed under the MIT License. *@
+@page "/ai"
+
+<PageTitle>AI Assistant</PageTitle>
+
+<div class="ai-chat">
+    <div class="chat-messages" @ref="MessagesEl">
+        @if (Messages.Count == 0)
+        {
+            <div class="chat-empty">
+                <div class="chat-empty-title">Ask about your worksheet</div>
+                <div class="chat-empty-hint">Try "Summarise column A" or "What's the highest value in the table?"</div>
+            </div>
+        }
+        else
+        {
+            @foreach (var m in Messages)
+            {
+                <div class="msg msg-@m.Role">
+                    <div class="msg-bubble">@m.Content</div>
+                </div>
+            }
+            @if (IsThinking)
+            {
+                <div class="msg msg-assistant">
+                    <div class="msg-bubble thinking">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    <div class="chat-input">
+        <textarea class="chat-textarea"
+                  placeholder="Ask a question about your worksheet..."
+                  rows="2"
+                  @bind="CurrentInput"
+                  @bind:event="oninput"
+                  @onkeydown="OnKeyDown"></textarea>
+        <button class="chat-send"
+                disabled="@(!CanSend)"
+                @onclick="SendAsync"
+                title="Send (Enter)">
+            Send
+        </button>
+    </div>
+</div>
+
+@inject IJSRuntime JS
+
+@code {
+    public record ChatMessage(string Role, string Content);
+
+    private const string StorageKey = "ai-chat-messages";
+
+    private List<ChatMessage> Messages { get; set; } = new();
+    private string CurrentInput { get; set; } = string.Empty;
+    private bool IsThinking { get; set; }
+    private ElementReference MessagesEl;
+    private IJSObjectReference? JSModule;
+    private bool ShouldScroll;
+
+    private bool CanSend => !IsThinking && !string.IsNullOrWhiteSpace(CurrentInput);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("sessionStorage.getItem", StorageKey);
+            if (!string.IsNullOrEmpty(json))
+            {
+                var saved = System.Text.Json.JsonSerializer.Deserialize<List<ChatMessage>>(json);
+                if (saved is { Count: > 0 })
+                {
+                    Messages = saved;
+                    ShouldScroll = true;
+                }
+            }
+        }
+        catch { /* ignore corrupt storage */ }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            JSModule = await JS.InvokeAsync<IJSObjectReference>("import", "./Pages/Ai.razor.js");
+        }
+        if (ShouldScroll && JSModule is not null)
+        {
+            ShouldScroll = false;
+            await JSModule.InvokeVoidAsync("scrollToBottom", MessagesEl);
+        }
+    }
+
+    private async Task PersistAsync()
+    {
+        var json = System.Text.Json.JsonSerializer.Serialize(Messages);
+        await JS.InvokeVoidAsync("sessionStorage.setItem", StorageKey, json);
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SendAsync();
+        }
+    }
+
+    private async Task SendAsync()
+    {
+        if (!CanSend) return;
+
+        var prompt = CurrentInput.Trim();
+        CurrentInput = string.Empty;
+        Messages.Add(new ChatMessage("user", prompt));
+        IsThinking = true;
+        ShouldScroll = true;
+        await PersistAsync();
+        StateHasChanged();
+
+        // TODO: replace this stub with a call to a backend that talks to the LLM.
+        await Task.Delay(700);
+
+        Messages.Add(new ChatMessage("assistant",
+            "LLM wiring is not connected yet. This is a placeholder response — hook me up to a backend endpoint that calls Claude/OpenAI and I'll answer for real."));
+        IsThinking = false;
+        ShouldScroll = true;
+        await PersistAsync();
+        StateHasChanged();
+    }
+}

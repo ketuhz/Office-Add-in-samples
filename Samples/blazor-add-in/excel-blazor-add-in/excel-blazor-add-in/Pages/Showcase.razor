@@ -1,0 +1,222 @@
+@* Copyright (c) Maarten van Stam. All rights reserved. Licensed under the MIT License. *@
+@page "/showcase"
+
+<PageTitle>Controls Showcase</PageTitle>
+
+<div class="showcase @(IsDarkMode ? "dark" : null)" style="font-size: @(FontSize)px; --ui-size: @(FontSize)px">
+    <div class="showcase-hero" style="background: @SelectedTheme.Gradient">
+        <h1>Controls Showcase</h1>
+        <p class="lead">A curated tour of Blazor form controls, wired up to the Office JavaScript API. Fill in the form and push it into the active worksheet.</p>
+    </div>
+
+    <div class="theme-toggles">
+        <span class="theme-label">Hero theme</span>
+        <div class="theme-pills">
+            @foreach (var theme in HeroThemes)
+            {
+                var active = SelectedTheme.Name == theme.Name;
+                <button type="button"
+                        class="theme-pill @(active ? "theme-pill-active" : null)"
+                        style="--swatch: @theme.Gradient"
+                        @onclick="() => SelectedTheme = theme">
+                    <span class="theme-swatch"></span>
+                    <span>@theme.Name</span>
+                </button>
+            }
+        </div>
+        <label class="mode-switch" title="Toggle dark mode">
+            <span class="mode-icon">@(IsDarkMode ? "🌙" : "☀")</span>
+            <span class="switch">
+                <input type="checkbox" @bind="IsDarkMode" />
+                <span class="slider"></span>
+            </span>
+        </label>
+    </div>
+
+    <div class="font-sizer">
+        <label for="fontSize">Font size: <strong>@FontSize px</strong></label>
+        <input id="fontSize" type="range" min="10" max="18" step="1" class="form-range"
+               value="@FontSize" @oninput="OnFontSizeChanged" />
+    </div>
+
+    <EditForm Model="Model" OnValidSubmit="WriteToExcel" class="showcase-form">
+        <DataAnnotationsValidator />
+
+        <section class="card">
+            <header class="card-header">
+                <span class="card-icon">1</span>
+                <div>
+                    <h3>Contact</h3>
+                    <small>Text, email, and multi-line inputs.</small>
+                </div>
+            </header>
+            <div class="card-body">
+                <div class="field">
+                    <label for="name">Full name</label>
+                    <InputText id="name" class="form-control" @bind-Value="Model.Name" placeholder="Ada Lovelace" />
+                    <ValidationMessage For="() => Model.Name" />
+                </div>
+
+                <div class="field">
+                    <label for="email">Email</label>
+                    <InputText id="email" class="form-control" type="email" @bind-Value="Model.Email" placeholder="ada@example.com" />
+                    <ValidationMessage For="() => Model.Email" />
+                </div>
+
+                <div class="field">
+                    <label for="notes">Notes</label>
+                    <InputTextArea id="notes" class="form-control" rows="3" @bind-Value="Model.Notes" placeholder="Anything worth remembering..." />
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <header class="card-header">
+                <span class="card-icon">2</span>
+                <div>
+                    <h3>Preferences</h3>
+                    <small>Numbers, dates, and selection.</small>
+                </div>
+            </header>
+            <div class="card-body">
+                <div class="field-row">
+                    <div class="field">
+                        <label for="age">Age</label>
+                        <InputNumber id="age" class="form-control" @bind-Value="Model.Age" />
+                    </div>
+                    <div class="field">
+                        <label for="dob">Start date</label>
+                        <InputDate id="dob" class="form-control" @bind-Value="Model.StartDate" />
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label for="role">Role</label>
+                    <InputSelect id="role" class="form-control" @bind-Value="Model.Role">
+                        <option value="">Select a role...</option>
+                        <option value="Analyst">Analyst</option>
+                        <option value="Engineer">Engineer</option>
+                        <option value="Designer">Designer</option>
+                        <option value="Manager">Manager</option>
+                    </InputSelect>
+                </div>
+
+                <div class="field">
+                    <label for="rating">Satisfaction: <strong>@Model.Rating / 10</strong></label>
+                    <input id="rating" type="range" min="0" max="10" class="form-range"
+                           value="@Model.Rating" @oninput="OnRatingChanged" />
+                </div>
+
+                <div class="field">
+                    <label for="color">Favorite color</label>
+                    <input id="color" type="color" class="form-color"
+                           value="@Model.Color" @oninput="OnColorChanged" />
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <header class="card-header">
+                <span class="card-icon">3</span>
+                <div>
+                    <h3>Options</h3>
+                    <small>Radios and checkboxes.</small>
+                </div>
+            </header>
+            <div class="card-body">
+                <div class="field">
+                    <label>Preferred contact</label>
+                    <div class="radio-group">
+                        @foreach (var option in new[] { "Email", "Phone", "Teams" })
+                        {
+                            <label class="radio-pill">
+                                <input type="radio" name="contact" value="@option"
+                                       checked="@(Model.Contact == option)"
+                                       @onchange="() => Model.Contact = option" />
+                                <span>@option</span>
+                            </label>
+                        }
+                    </div>
+                </div>
+
+                <div class="field">
+                    <label class="check">
+                        <InputCheckbox @bind-Value="Model.Subscribe" />
+                        <span>Send me product updates</span>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <section class="card">
+            <header class="card-header">
+                <span class="card-icon">4</span>
+                <div>
+                    <h3>Row &amp; column lock</h3>
+                    <small>Mark an entire row or column as read-only in Excel.</small>
+                </div>
+            </header>
+            <div class="card-body">
+                <div class="lock-row">
+                    <div class="field lock-field">
+                        <label for="rowNumber">Row number</label>
+                        <input id="rowNumber" type="number" min="1" class="form-control"
+                               @bind="RowNumber" />
+                    </div>
+                    <label class="lock-toggle" title="Lock / unlock row">
+                        <span class="lock-text">@(RowLocked ? "Locked" : "Unlocked")</span>
+                        <span class="switch">
+                            <input type="checkbox" @bind="RowLocked" @bind:after="OnRowLockChanged" />
+                            <span class="slider"></span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="lock-row">
+                    <div class="field lock-field">
+                        <label for="colLetter">Column letter</label>
+                        <input id="colLetter" type="text" maxlength="3" class="form-control"
+                               @bind="ColumnLetter" placeholder="A" />
+                    </div>
+                    <label class="lock-toggle" title="Lock / unlock column">
+                        <span class="lock-text">@(ColumnLocked ? "Locked" : "Unlocked")</span>
+                        <span class="switch">
+                            <input type="checkbox" @bind="ColumnLocked" @bind:after="OnColumnLockChanged" />
+                            <span class="slider"></span>
+                        </span>
+                    </label>
+                </div>
+
+                <div class="lock-row">
+                    <div class="field lock-field">
+                        <label for="cellRow">Cell row</label>
+                        <input id="cellRow" type="number" min="1" class="form-control"
+                               @bind="CellRow" />
+                    </div>
+                    <div class="field lock-field">
+                        <label for="cellCol">Cell column</label>
+                        <input id="cellCol" type="text" maxlength="3" class="form-control"
+                               @bind="CellColumn" placeholder="A" />
+                    </div>
+                    <label class="lock-toggle" title="Lock / unlock cell">
+                        <span class="lock-text">@(CellLocked ? "Locked" : "Unlocked")</span>
+                        <span class="switch">
+                            <input type="checkbox" @bind="CellLocked" @bind:after="OnCellLockChanged" />
+                            <span class="slider"></span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <div class="actions">
+            <button type="submit" class="btn btn-primary btn-lg">Write to worksheet</button>
+            <button type="button" class="btn btn-outline" @onclick="ResetForm">Reset</button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(StatusMessage))
+        {
+            <div class="status @StatusKind">@StatusMessage</div>
+        }
+    </EditForm>
+</div>

@@ -3,14 +3,30 @@
 @inherits LayoutComponentBase
 
 <div class="main">
-	<header class="d-flex align-items-center justify-content-center ">
-		<img src="./images/parker-ms.svg" />
-		<h1>
-			Blazor Office JS API demo
-		</h1>
+	<header class="app-header">
+		<h1>Blazor Office JS API Demo</h1>
 	</header>
 
-	<NavMenu />
+	<div class="tab-controls">
+		<label for="tabPicker" class="tab-controls-label">Tabs</label>
+		<select id="tabPicker" class="tab-picker" multiple size="3" @bind="SelectedPaths">
+			@foreach (var tab in NavMenu.AllTabs)
+			{
+				<option value="@tab.Path">@tab.Label</option>
+			}
+		</select>
+		<label class="tab-visibility" title="Hide / show selected tabs">
+			<span class="tab-visibility-text">@VisibilityLabel</span>
+			<span class="switch">
+				<input type="checkbox" checked="@AllSelectedHidden"
+					   disabled="@(SelectedPaths.Length == 0)"
+					   @onchange="OnVisibilityToggled" />
+				<span class="slider"></span>
+			</span>
+		</label>
+	</div>
+
+	<NavMenu HiddenPaths="@HiddenPaths" />
 
 	<div class="content">
 		<div class="container">
@@ -35,4 +51,35 @@
 @code {
 	public string TrademarkMessage1 { get; set; } = "Copyright © " + @DateTime.Now.Year + " Maarten van Stam.";
 	public string TrademarkMessage2 { get; set; } = "All rights reserved.";
+
+	private string[] SelectedPaths { get; set; } = Array.Empty<string>();
+	private string[] HiddenPaths { get; set; } = Array.Empty<string>();
+
+	private bool AllSelectedHidden =>
+		SelectedPaths.Length > 0 && SelectedPaths.All(p => HiddenPaths.Contains(p));
+
+	private string VisibilityLabel
+	{
+		get
+		{
+			if (SelectedPaths.Length == 0) return "—";
+			var hidden = SelectedPaths.Count(p => HiddenPaths.Contains(p));
+			if (hidden == 0) return "Visible";
+			if (hidden == SelectedPaths.Length) return "Hidden";
+			return "Mixed";
+		}
+	}
+
+	private void OnVisibilityToggled(ChangeEventArgs e)
+	{
+		if (SelectedPaths.Length == 0) return;
+		var hide = e.Value is bool b && b;
+		var set = new HashSet<string>(HiddenPaths, StringComparer.OrdinalIgnoreCase);
+		foreach (var path in SelectedPaths)
+		{
+			if (hide) set.Add(path);
+			else set.Remove(path);
+		}
+		HiddenPaths = set.ToArray();
+	}
 }
